@@ -4,11 +4,11 @@ services:
   node-red:
     image: nodered/node-red:latest
     environment:
-      - TZ=Europe/Amsterdam
+      - TZ=Europe/london
     ports:
       - "1880:1880"
     networks:
-      - loki
+      - greenhouse
     
 
   grafana:
@@ -18,24 +18,37 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_BASIC_ENABLED=false
       - GF_FEATURE_TOGGLES_ENABLE=accessControlOnCall
-      - GF_INSTALL_PLUGINS=https://storage.googleapis.com/integration-artifacts/grafana-lokiexplore-app/grafana-lokiexplore-app-latest.zip;grafana-lokiexplore-app
     ports:
       - 3000:3000/tcp
     volumes:
       - ./grafana:/etc/grafana/provisioning
     networks:
-      - loki
+      - greenhouse
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - 9090:9090
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    command: --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver --enable-feature=exemplar-storage
+    networks:
+      - greenhouse
+
+  loki:
+    image: grafana/loki:3.4.2
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - greenhouse
   
 
-  influxdb2:
-    image: influxdb:2.7.11
-    ports:
-      - 8086:8086
-    networks:
-      - loki
     
 networks:
-    loki:
+    greenhouse:
 
     
 
