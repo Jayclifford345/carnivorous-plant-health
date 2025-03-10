@@ -6,15 +6,6 @@ datasources:
   url: http://loki:3100
   editable: true
   isDefault: true
-  jsonData:
-    derivedFields:
-      - datasourceUid: "tempo"
-        matcherRegex: "trace_id"
-        matcherType: "label"
-        name: "trace_id"
-        targetBlank: true
-        url: "$${__value.raw}"
-        urlDisplayLabel: ""
 
 - name: prometheus
   type: prometheus
@@ -26,21 +17,4 @@ datasources:
     cacheLevel: 'None'
     timeInterval: 3s
     httpMethod: "POST"
-    exemplarTraceIdDestinations:
-      - datasourceUid: "tempo"
-        name: "trace_id"
 
-- name: tempo
-  type: tempo
-  url: "http://tempo:3200"
-  editable: true
-  jsonData:
-    nodeGraph: 
-      enabled: true
-    serviceMap:
-      datasourceUid: 'prometheus'
-    tracesToLogsV2:
-      datasourceUid: 'loki'
-      filterBySpanID: false
-    tracesToMetrics:
-      datasourceUid: 'prometheus'
