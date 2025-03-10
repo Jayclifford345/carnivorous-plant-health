@@ -24,6 +24,7 @@ services:
       - ./grafana:/etc/grafana/provisioning
     networks:
       - greenhouse
+    restart: always
 
   prometheus:
     image: prom/prometheus:latest
@@ -34,6 +35,7 @@ services:
     command: --config.file=/etc/prometheus/prometheus.yml --web.enable-otlp-receiver --enable-feature=exemplar-storage
     networks:
       - greenhouse
+    restart: always
 
   loki:
     image: grafana/loki:3.4.2
@@ -44,6 +46,7 @@ services:
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - greenhouse
+    restart: always
   
 
     
