@@ -9,6 +9,7 @@ services:
       - "1880:1880"
     networks:
       - greenhouse
+    restart: always
     
 
   grafana:
