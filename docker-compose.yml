@@ -49,7 +49,17 @@ services:
       - greenhouse
     restart: always
   
-
+  alloy:
+    image: grafana/alloy:latest
+    ports:
+      - 12345:12345
+      - 4318:4318
+      - 4317:4317
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    networks:
+      - greenhouse
     
 networks:
     greenhouse:
