@@ -23,18 +23,18 @@ INTERVAL_SEC=5
 
 def read_temperature(observer):
     global temp
-    return [metrics.Observation(value=temp)]
+    return [metrics.Observation(value=temp, attributes={"serial_number": serial_number, "sensor_name": sensor_name})]
 
 def read_humidity(observer):
     global hum
-    return [metrics.Observation(value=hum)]
+    return [metrics.Observation(value=hum,  attributes={"serial_number": serial_number, "sensor_name": sensor_name})]
 
 def create_guage():
     exporter = OTLPMetricExporter(endpoint="http://plant-hub:4318/v1/metrics")
     metric_reader = PeriodicExportingMetricReader(exporter, INTERVAL_SEC)
     meter_provider = MeterProvider(
                     metric_readers=[metric_reader], 
-                    resource=Resource.create({"service.name": service_name, "serial_number": serial_number, "sensor_name": sensor_name})
+                    resource=Resource.create({"service.name": service_name})
                 )
 
     metrics.set_meter_provider(meter_provider)
