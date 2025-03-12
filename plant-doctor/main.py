@@ -3,6 +3,7 @@ import time
 import json
 from datetime import datetime
 import cv2
+import numpy as np
 import base64
 from flask import Flask, jsonify, send_file, render_template
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -70,6 +71,33 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
+# Function to improve image quality
+def enhance_image(image):
+    """Apply image enhancement to improve visibility for analysis."""
+    
+    # Convert to LAB color space
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    l, a, b = cv2.split(lab)
+    
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    cl = clahe.apply(l)
+    
+    # Merge the CLAHE enhanced L-channel with the original A and B channels
+    limg = cv2.merge((cl, a, b))
+    
+    # Convert back to BGR color space
+    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+    
+    # Apply additional brightness/contrast adjustment if needed
+    brightness = 10
+    contrast = 1.25  # 1.0 means no change
+    
+    # Apply brightness/contrast adjustment
+    enhanced = cv2.addWeighted(enhanced, contrast, enhanced, 0, brightness)
+    
+    return enhanced
+
 # Function to take a picture
 def take_picture():
     try:
@@ -77,17 +105,25 @@ def take_picture():
         cam_port = 0
         cam = cv2.VideoCapture(cam_port)
         
+        # Set camera properties for better exposure
+        cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Auto exposure
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)    # Higher resolution
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)    # Higher resolution
+        
         # Reading the input using the camera
         result, image = cam.read()
         
         if result:
+            # Apply image enhancement
+            enhanced_image = enhance_image(image)
+            
             # Save timestamped copy for records
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             archive_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
-            cv2.imwrite(archive_path, image)
+            cv2.imwrite(archive_path, enhanced_image)
             
             # Save as current image (will be overwritten on next capture)
-            cv2.imwrite(CURRENT_IMAGE_PATH, image)
+            cv2.imwrite(CURRENT_IMAGE_PATH, enhanced_image)
             
             # Release the camera
             cam.release()
