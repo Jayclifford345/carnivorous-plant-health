@@ -1,0 +1,11 @@
+apiVersion: 1
+contactPoints:
+    - orgId: 1
+      name: Node Red
+      receivers:
+        - uid: befimr4gtvmdca
+          type: webhook
+          settings:
+            httpMethod: POST
+            url: http://node-red:1880/grafana-alert
+          disableResolveMessage: false

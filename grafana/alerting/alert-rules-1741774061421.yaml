@@ -1,0 +1,70 @@
+apiVersion: 1
+groups:
+    - orgId: 1
+      name: Tank Check
+      folder: Greenhouse
+      interval: 1m
+      rules:
+        - uid: feflvyg35jqwwd
+          title: 'Tank Humidity '
+          condition: B
+          data:
+            - refId: A
+              relativeTimeRange:
+                from: 600
+                to: 0
+              datasourceUid: P1809F7CD0C75ACF3
+              model:
+                datasource:
+                    type: prometheus
+                    uid: P1809F7CD0C75ACF3
+                disableTextWrap: false
+                editorMode: builder
+                expr: humidity_percent{sensor_name="SHT31-D"}
+                fullMetaSearch: false
+                hide: false
+                includeNullMetadata: true
+                instant: true
+                intervalMs: 1000
+                legendFormat: __auto
+                maxDataPoints: 43200
+                range: false
+                refId: A
+                useBackend: false
+            - refId: B
+              datasourceUid: __expr__
+              model:
+                conditions:
+                    - evaluator:
+                        params:
+                            - 80
+                        type: lt
+                      operator:
+                        type: and
+                      query:
+                        params:
+                            - C
+                      reducer:
+                        params: []
+                        type: last
+                      type: query
+                datasource:
+                    type: __expr__
+                    uid: __expr__
+                expression: A
+                intervalMs: 1000
+                maxDataPoints: 43200
+                refId: B
+                type: threshold
+          dashboardUid: deflrf7e72dj4d
+          panelId: 3
+          noDataState: NoData
+          execErrState: Error
+          for: 5m
+          annotations:
+            __dashboardUid__: deflrf7e72dj4d
+            __panelId__: "3"
+          isPaused: false
+          notification_settings:
+            receiver: Node Red
+            repeat_interval: 5m
