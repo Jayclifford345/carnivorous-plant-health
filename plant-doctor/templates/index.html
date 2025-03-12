@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Carnivorous Plant Health Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .image-container {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .image-container img {
+            max-width: 100%;
+        }
+        .data-container {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+        .refresh {
+            margin-top: 20px;
+        }
+        .plant-info {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .info { background-color: #d1e7dd; }
+        .warning { background-color: #fff3cd; }
+        .critical { background-color: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>Carnivorous Plant Health Monitor</h1>
+    
+    <div class="container">
+        <div class="image-container">
+            <h2>Latest Plant Image</h2>
+            <img src="/image" alt="Latest plant image">
+            <p>Last captured: <span id="capture-time">{{ capture_time }}</span></p>
+        </div>
+        
+        <div class="data-container">
+            <h2>Plant Health Analysis</h2>
+            {% if health_data %}
+                {% for plant in health_data.log %}
+                <div class="plant-info {{ plant.plant_status }}">
+                    <h3>Plant #{{ plant.plant_id }} ({{ plant.plant_type }})</h3>
+                    <p><strong>Status:</strong> {{ plant.plant_status }}</p>
+                    <p><strong>Diagnosis:</strong> {{ plant.plant_diagnosis }}</p>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p>No analysis data available yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="refresh">
+            <a href="/">Refresh Page</a> | 
+            <a href="/api/health">View JSON Data</a> | 
+            <a href="/api/capture" onclick="return confirm('Trigger a new capture and analysis?')">Trigger New Capture</a>
+        </div>
+    </div>
+</body>
+</html> 

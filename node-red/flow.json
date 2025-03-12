@@ -46,7 +46,8 @@
         "wires": [
             [
                 "log_alert",
-                "8a2299e7ac703d7c"
+                "8a2299e7ac703d7c",
+                "d753d0d0c6755548"
             ]
         ]
     },
@@ -61,8 +62,8 @@
         "tostatus": false,
         "complete": "payload",
         "targetType": "msg",
-        "x": 760,
-        "y": 340,
+        "x": 720,
+        "y": 240,
         "wires": []
     },
     {
@@ -75,5 +76,112 @@
         "x": 550,
         "y": 460,
         "wires": []
+    },
+    {
+        "id": "aa1e35c47b6a3e6e",
+        "type": "smartplug-control",
+        "z": "f6f2187d.f17ca8",
+        "confignode": "05f160545d75b49f",
+        "name": "Plant Humidifier",
+        "ip": "192.168.1.129",
+        "x": 740,
+        "y": 480,
+        "wires": [
+            [
+                "b4c8713463cb4b5f"
+            ]
+        ]
+    },
+    {
+        "id": "b3ce7b394265c8d2",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "Turn On",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "true",
+        "payloadType": "bool",
+        "x": 430,
+        "y": 580,
+        "wires": [
+            [
+                "aa1e35c47b6a3e6e"
+            ]
+        ]
+    },
+    {
+        "id": "b22137ccefcfb0d2",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "Turn Off",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "false",
+        "payloadType": "bool",
+        "x": 430,
+        "y": 660,
+        "wires": [
+            [
+                "aa1e35c47b6a3e6e"
+            ]
+        ]
+    },
+    {
+        "id": "b4c8713463cb4b5f",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 800,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "d753d0d0c6755548",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "function 1",
+        "func": "msg.payload = true;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 780,
+        "y": 340,
+        "wires": [
+            [
+                "aa1e35c47b6a3e6e"
+            ]
+        ]
+    },
+    {
+        "id": "05f160545d75b49f",
+        "type": "meross-config",
+        "name": "Plant Humidifier",
+        "key": ""
     }
 ]
