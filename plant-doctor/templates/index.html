@@ -36,10 +36,73 @@
         .info { background-color: #d1e7dd; }
         .warning { background-color: #fff3cd; }
         .critical { background-color: #f8d7da; }
+        .action-button {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            margin: 20px 0;
+            transition: background-color 0.3s;
+        }
+        .action-button:hover {
+            background-color: #45a049;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .loading {
+            display: none;
+            margin-left: 10px;
+            font-style: italic;
+        }
     </style>
+    <script>
+        function triggerCapture() {
+            if (confirm('Are you sure you want to capture and analyze a new image?')) {
+                document.getElementById('captureLoading').style.display = 'inline';
+                document.getElementById('captureBtn').disabled = true;
+                
+                fetch('/api/capture')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            alert('Capture and analysis completed successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('Error: ' + error);
+                    })
+                    .finally(() => {
+                        document.getElementById('captureLoading').style.display = 'none';
+                        document.getElementById('captureBtn').disabled = false;
+                    });
+            }
+            return false;
+        }
+    </script>
 </head>
 <body>
-    <h1>Carnivorous Plant Health Monitor</h1>
+    <div class="header">
+        <h1>Carnivorous Plant Health Monitor</h1>
+        <div>
+            <button id="captureBtn" class="action-button" onclick="return triggerCapture()">
+                📸 Capture & Analyze Now
+            </button>
+            <span id="captureLoading" class="loading">Processing... (this may take up to 30 seconds)</span>
+        </div>
+    </div>
     
     <div class="container">
         <div class="image-container">
@@ -65,8 +128,7 @@
         
         <div class="refresh">
             <a href="/">Refresh Page</a> | 
-            <a href="/api/health">View JSON Data</a> | 
-            <a href="/api/capture" onclick="return confirm('Trigger a new capture and analysis?')">Trigger New Capture</a>
+            <a href="/api/health">View JSON Data</a>
         </div>
     </div>
 </body>
