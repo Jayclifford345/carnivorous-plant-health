@@ -74,112 +74,199 @@ def encode_image(image_path):
 # Function to improve image quality
 def enhance_image(image):
     """Apply image enhancement to improve visibility for analysis."""
-    
-    # Convert to LAB color space
-    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    l, a, b = cv2.split(lab)
-    
-    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) more aggressively
-    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
-    cl = clahe.apply(l)
-    
-    # Merge the CLAHE enhanced L-channel with the original A and B channels
-    limg = cv2.merge((cl, a, b))
-    
-    # Convert back to BGR color space
-    enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-    
-    # Color correction to reduce red tint
-    # Split channels
-    b, g, r = cv2.split(enhanced)
-    
-    # Reduce red channel intensity and boost others slightly
-    r = cv2.addWeighted(r, 0.8, r, 0, 0)  # Reduce red channel
-    b = cv2.addWeighted(b, 1.2, b, 0, 5)  # Boost blue channel
-    g = cv2.addWeighted(g, 1.1, g, 0, 5)  # Boost green channel
-    
-    # Merge channels back
-    enhanced = cv2.merge((b, g, r))
-    
-    # Apply stronger brightness/contrast adjustment
-    brightness = 20  # Increased from 10
-    contrast = 1.35  # Increased from 1.25
-    
-    # Apply brightness/contrast adjustment
-    enhanced = cv2.addWeighted(enhanced, contrast, enhanced, 0, brightness)
-    
-    # Final white balance correction
-    enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
-    
-    return enhanced
+    try:
+        # Check if image is empty or invalid
+        if image is None or image.size == 0:
+            print(f"[{datetime.now()}] ERROR: Invalid image passed to enhance_image")
+            return None
+            
+        # Create a copy to avoid modifying the original
+        original = image.copy()
+        
+        # Try multiple enhancement approaches and pick the best one
+        
+        # Approach 1: Color balance correction (fix blue/red tint)
+        enhanced1 = original.copy()
+        # Split channels
+        b, g, r = cv2.split(enhanced1)
+        
+        # Fix blue tint by reducing blue and increasing red/green
+        r = cv2.multiply(r, 1.5)  # Boost red substantially
+        g = cv2.multiply(g, 1.3)  # Boost green moderately
+        b = cv2.multiply(b, 0.7)  # Reduce blue
+        
+        # Make sure we don't exceed 255
+        r = np.clip(r, 0, 255).astype(np.uint8)
+        g = np.clip(g, 0, 255).astype(np.uint8)
+        b = np.clip(b, 0, 255).astype(np.uint8)
+        
+        # Merge channels back
+        enhanced1 = cv2.merge((b, g, r))
+        
+        # Apply sharpening
+        kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+        enhanced1 = cv2.filter2D(enhanced1, -1, kernel)
+        
+        # Approach 2: Gray world assumption
+        enhanced2 = original.copy()
+        b, g, r = cv2.split(enhanced2)
+        r_avg = np.mean(r)
+        g_avg = np.mean(g)
+        b_avg = np.mean(b)
+        
+        # Calculate the average of the averages
+        k = (r_avg + g_avg + b_avg) / 3
+        
+        # Find the gain multipliers
+        kr = k / r_avg if r_avg > 0 else 1
+        kg = k / g_avg if g_avg > 0 else 1
+        kb = k / b_avg if b_avg > 0 else 1
+        
+        # Apply gains
+        r = cv2.multiply(r, kr)
+        g = cv2.multiply(g, kg)
+        b = cv2.multiply(b, kb)
+        
+        # Make sure we don't exceed 255
+        r = np.clip(r, 0, 255).astype(np.uint8)
+        g = np.clip(g, 0, 255).astype(np.uint8)
+        b = np.clip(b, 0, 255).astype(np.uint8)
+        
+        # Merge the channels back
+        enhanced2 = cv2.merge((b, g, r))
+        
+        # Apply contrast enhancement
+        enhanced2 = cv2.addWeighted(enhanced2, 1.5, enhanced2, 0, 0)
+        
+        # Approach 3: CLAHE on all channels
+        enhanced3 = original.copy()
+        # Convert to LAB
+        lab = cv2.cvtColor(enhanced3, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # Apply CLAHE to L channel
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        l = clahe.apply(l)
+        
+        # Apply CLAHE to a and b channels too (unconventional but may help)
+        a = clahe.apply(a)
+        b = clahe.apply(b)
+        
+        # Merge channels
+        lab = cv2.merge((l, a, b))
+        
+        # Convert back to BGR
+        enhanced3 = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+        
+        # Save all three approaches for comparison
+        cv2.imwrite(os.path.join(IMAGE_DIR, "enhanced1.jpg"), enhanced1)
+        cv2.imwrite(os.path.join(IMAGE_DIR, "enhanced2.jpg"), enhanced2)
+        cv2.imwrite(os.path.join(IMAGE_DIR, "enhanced3.jpg"), enhanced3)
+        
+        # Use approach 1 as our primary enhancement
+        return enhanced1
+        
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR in enhance_image: {str(e)}")
+        # If enhancement fails, return original image
+        return image
 
 # Function to take a picture
 def take_picture():
     try:
         print(f"[{datetime.now()}] Taking a picture...")
-        cam_port = 0
-        cam = cv2.VideoCapture(cam_port)
         
-        if not cam.isOpened():
-            print(f"[{datetime.now()}] ERROR: Could not open camera on port {cam_port}")
-            return None
+        # Try multiple camera ports if first one fails
+        for cam_port in [0, 1, 2]:
+            try:
+                print(f"[{datetime.now()}] Trying camera port {cam_port}")
+                cam = cv2.VideoCapture(cam_port)
+                
+                if not cam.isOpened():
+                    print(f"[{datetime.now()}] Failed to open camera on port {cam_port}")
+                    continue
+                
+                # Try different camera initialization methods
+                # Method 1: Standard OpenCV settings
+                cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+                cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+                
+                # Method 2: Set very explicit camera properties
+                # Turn off auto settings that might cause color issues
+                cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)  # Turn off auto exposure
+                cam.set(cv2.CAP_PROP_AUTO_WB, 0)        # Turn off auto white balance
+                
+                # Set manual exposure and white balance values
+                cam.set(cv2.CAP_PROP_EXPOSURE, -4)      # Slightly underexpose to avoid washout
+                cam.set(cv2.CAP_PROP_WB_TEMPERATURE, 5000)  # Neutral white balance temperature
+                
+                # Give the camera time to adjust to settings
+                print(f"[{datetime.now()}] Warming up camera...")
+                warm_up_frames = 15  # Increased from 10
+                for i in range(warm_up_frames):
+                    # Capture and discard warm-up frames
+                    cam.read()
+                    time.sleep(0.2)  # Longer delay between frames (increased from 0.1)
+                
+                # Now capture multiple frames and select the best one
+                print(f"[{datetime.now()}] Capturing multiple frames to select best...")
+                frames = []
+                scores = []
+                
+                # Capture several frames
+                for i in range(5):
+                    result, image = cam.read()
+                    if result and image is not None and not np.all(image == 0):
+                        # Compute a simple quality score (standard deviation across all pixels)
+                        # Higher std dev = more detail/contrast = better image generally
+                        score = np.std(image)
+                        frames.append(image)
+                        scores.append(score)
+                        print(f"[{datetime.now()}] Frame {i+1} captured, quality score: {score}")
+                    time.sleep(0.5)
+                
+                # Release the camera
+                cam.release()
+                
+                if len(frames) > 0:
+                    # Select the best frame based on quality score
+                    best_idx = np.argmax(scores)
+                    captured_image = frames[best_idx]
+                    print(f"[{datetime.now()}] Selected best frame (index {best_idx}) with score {scores[best_idx]}")
+                    
+                    # Save original image
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
+                    cv2.imwrite(original_path, captured_image)
+                    
+                    # Apply image enhancement
+                    enhanced_image = enhance_image(captured_image)
+                    
+                    if enhanced_image is not None:
+                        # Save enhanced image
+                        enhanced_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
+                        cv2.imwrite(enhanced_path, enhanced_image)
+                        
+                        # Save as current image
+                        cv2.imwrite(CURRENT_IMAGE_PATH, enhanced_image)
+                        
+                        print(f"[{datetime.now()}] Image captured and saved to {enhanced_path}")
+                        print(f"[{datetime.now()}] Original image saved to {original_path} for comparison")
+                        print(f"[{datetime.now()}] Three enhancement approaches saved to enhanced1/2/3.jpg for comparison")
+                        return CURRENT_IMAGE_PATH
+                    else:
+                        print(f"[{datetime.now()}] ERROR: Image enhancement failed")
+                
+                print(f"[{datetime.now()}] No valid frames captured from camera {cam_port}")
+                
+            except Exception as e:
+                print(f"[{datetime.now()}] ERROR with camera {cam_port}: {str(e)}")
+                # If this camera port fails, try the next one
+                continue
+        
+        print(f"[{datetime.now()}] ERROR: All camera attempts failed")
+        return None
             
-        # Set camera properties for better exposure
-        cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # 1 = Camera sets exposure automatically
-        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        
-        # Turn off auto white balance and set it manually if the red tint is from IR mode
-        cam.set(cv2.CAP_PROP_AUTO_WB, 0)  # Turn off auto white balance if supported
-        
-        # Give the camera time to adjust to settings
-        print(f"[{datetime.now()}] Warming up camera...")
-        warm_up_frames = 10
-        for i in range(warm_up_frames):
-            # Capture and discard warm-up frames
-            cam.read()
-            time.sleep(0.1)  # Short delay between frames
-            
-        # Now capture the actual image we want to keep
-        print(f"[{datetime.now()}] Capturing image after warm-up...")
-        
-        # Try multiple captures if needed
-        max_attempts = 3
-        captured_image = None
-        
-        for attempt in range(max_attempts):
-            result, image = cam.read()
-            if result and image is not None and not np.all(image == 0):
-                captured_image = image
-                break
-            print(f"[{datetime.now()}] Capture attempt {attempt+1} failed. Retrying...")
-            time.sleep(0.5)  # Wait before next attempt
-        
-        # Release the camera
-        cam.release()
-        
-        if captured_image is not None:
-            # Save original image for debugging
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
-            cv2.imwrite(original_path, captured_image)
-            
-            # Apply image enhancement
-            enhanced_image = enhance_image(captured_image)
-            
-            # Save enhanced image
-            enhanced_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
-            cv2.imwrite(enhanced_path, enhanced_image)
-            
-            # Save as current image
-            cv2.imwrite(CURRENT_IMAGE_PATH, enhanced_image)
-            
-            print(f"[{datetime.now()}] Image captured and saved to {enhanced_path}")
-            print(f"[{datetime.now()}] Original image saved to {original_path} for comparison")
-            return CURRENT_IMAGE_PATH
-        else:
-            print(f"[{datetime.now()}] ERROR: All capture attempts failed")
-            return None
     except Exception as e:
         print(f"[{datetime.now()}] ERROR: Failed to take picture: {str(e)}")
         return None
