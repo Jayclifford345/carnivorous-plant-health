@@ -79,8 +79,8 @@ def enhance_image(image):
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
     
-    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization)
-    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) more aggressively
+    clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
     cl = clahe.apply(l)
     
     # Merge the CLAHE enhanced L-channel with the original A and B channels
@@ -89,12 +89,27 @@ def enhance_image(image):
     # Convert back to BGR color space
     enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
     
-    # Apply additional brightness/contrast adjustment if needed
-    brightness = 10
-    contrast = 1.25  # 1.0 means no change
+    # Color correction to reduce red tint
+    # Split channels
+    b, g, r = cv2.split(enhanced)
+    
+    # Reduce red channel intensity and boost others slightly
+    r = cv2.addWeighted(r, 0.8, r, 0, 0)  # Reduce red channel
+    b = cv2.addWeighted(b, 1.2, b, 0, 5)  # Boost blue channel
+    g = cv2.addWeighted(g, 1.1, g, 0, 5)  # Boost green channel
+    
+    # Merge channels back
+    enhanced = cv2.merge((b, g, r))
+    
+    # Apply stronger brightness/contrast adjustment
+    brightness = 20  # Increased from 10
+    contrast = 1.35  # Increased from 1.25
     
     # Apply brightness/contrast adjustment
     enhanced = cv2.addWeighted(enhanced, contrast, enhanced, 0, brightness)
+    
+    # Final white balance correction
+    enhanced = cv2.fastNlMeansDenoisingColored(enhanced, None, 10, 10, 7, 21)
     
     return enhanced
 
@@ -105,33 +120,65 @@ def take_picture():
         cam_port = 0
         cam = cv2.VideoCapture(cam_port)
         
+        if not cam.isOpened():
+            print(f"[{datetime.now()}] ERROR: Could not open camera on port {cam_port}")
+            return None
+            
         # Set camera properties for better exposure
-        cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Auto exposure
-        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)    # Higher resolution
-        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)    # Higher resolution
+        cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  # 1 = Camera sets exposure automatically
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
         
-        # Reading the input using the camera
-        result, image = cam.read()
+        # Turn off auto white balance and set it manually if the red tint is from IR mode
+        cam.set(cv2.CAP_PROP_AUTO_WB, 0)  # Turn off auto white balance if supported
         
-        if result:
-            # Apply image enhancement
-            enhanced_image = enhance_image(image)
+        # Give the camera time to adjust to settings
+        print(f"[{datetime.now()}] Warming up camera...")
+        warm_up_frames = 10
+        for i in range(warm_up_frames):
+            # Capture and discard warm-up frames
+            cam.read()
+            time.sleep(0.1)  # Short delay between frames
             
-            # Save timestamped copy for records
+        # Now capture the actual image we want to keep
+        print(f"[{datetime.now()}] Capturing image after warm-up...")
+        
+        # Try multiple captures if needed
+        max_attempts = 3
+        captured_image = None
+        
+        for attempt in range(max_attempts):
+            result, image = cam.read()
+            if result and image is not None and not np.all(image == 0):
+                captured_image = image
+                break
+            print(f"[{datetime.now()}] Capture attempt {attempt+1} failed. Retrying...")
+            time.sleep(0.5)  # Wait before next attempt
+        
+        # Release the camera
+        cam.release()
+        
+        if captured_image is not None:
+            # Save original image for debugging
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
-            cv2.imwrite(archive_path, enhanced_image)
+            original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
+            cv2.imwrite(original_path, captured_image)
             
-            # Save as current image (will be overwritten on next capture)
+            # Apply image enhancement
+            enhanced_image = enhance_image(captured_image)
+            
+            # Save enhanced image
+            enhanced_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
+            cv2.imwrite(enhanced_path, enhanced_image)
+            
+            # Save as current image
             cv2.imwrite(CURRENT_IMAGE_PATH, enhanced_image)
             
-            # Release the camera
-            cam.release()
-            
-            print(f"[{datetime.now()}] Image captured and saved to {archive_path}")
+            print(f"[{datetime.now()}] Image captured and saved to {enhanced_path}")
+            print(f"[{datetime.now()}] Original image saved to {original_path} for comparison")
             return CURRENT_IMAGE_PATH
         else:
-            print(f"[{datetime.now()}] ERROR: Failed to access the camera")
+            print(f"[{datetime.now()}] ERROR: All capture attempts failed")
             return None
     except Exception as e:
         print(f"[{datetime.now()}] ERROR: Failed to take picture: {str(e)}")
