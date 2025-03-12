@@ -63,8 +63,19 @@ def main():
 
     while True:
         global temp, hum
-        temp = sensor.temperature
-        hum = sensor.relative_humidity
+        try: 
+            temp = sensor.temperature
+            hum = sensor.relative_humidity
+        except:
+            print("Sensor has failed to connect")
+            time.sleep(5)
+            i2c = board.I2C()  # uses board.SCL and board.SDA
+            sensor = adafruit_sht31d.SHT31D(i2c)
+            time.sleep(1)
+            temp = sensor.temperature
+            hum = sensor.relative_humidity
+
+
         current_time = time.time()
 
         # 🌡️ **Heater Strategy**
