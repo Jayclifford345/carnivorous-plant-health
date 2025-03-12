@@ -1,2 +1,3 @@
 .venv
 node-red/data/*
+.env
