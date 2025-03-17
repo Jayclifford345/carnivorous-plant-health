@@ -72,48 +72,11 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 # Function to improve image quality
-def enhance_image(image):
-    """Apply image enhancement to improve visibility for analysis."""
-    try:
-        # Check if image is empty or invalid
-        if image is None or image.size == 0:
-            print(f"[{datetime.now()}] ERROR: Invalid image passed to enhance_image")
-            return None
-            
-        # Create a copy to avoid modifying the original
-        enhanced = image.copy()
-        
-        # Color balance correction - the approach that worked best
-        # Split channels
-        b, g, r = cv2.split(enhanced)
-        
-        # Apply mild color correction (less aggressive now that camera settings are better)
-        r = cv2.multiply(r, 1.2)  # Slight boost to red
-        g = cv2.multiply(g, 1.1)  # Slight boost to green
-        b = cv2.multiply(b, 0.9)  # Slight reduction of blue
-        
-        # Make sure we don't exceed 255
-        r = np.clip(r, 0, 255).astype(np.uint8)
-        g = np.clip(g, 0, 255).astype(np.uint8)
-        b = np.clip(b, 0, 255).astype(np.uint8)
-        
-        # Merge channels back
-        enhanced = cv2.merge((b, g, r))
-        
-        # Apply light sharpening for better detail
-        kernel = np.array([[-0.5,-0.5,-0.5], [-0.5,5,-0.5], [-0.5,-0.5,-0.5]])
-        enhanced = cv2.filter2D(enhanced, -1, kernel)
-        
-        return enhanced
-        
-    except Exception as e:
-        print(f"[{datetime.now()}] ERROR in enhance_image: {str(e)}")
-        # If enhancement fails, return original image
-        return image
+
 
 # Function to take a picture
 def take_picture():
-    try:
+
         print(f"[{datetime.now()}] Taking a picture...")
         cam_port = 0  # Default camera port
         
@@ -125,17 +88,13 @@ def take_picture():
                 return None
             
             # Set camera properties - these are the settings that worked well
-            cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
             cam.set(cv2.CAP_PROP_FPS, 30)  # Set explicit frame rate
             
             # Turn off auto settings that caused color issues
-            cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)  # Turn off auto exposure
-            cam.set(cv2.CAP_PROP_AUTO_WB, 0)        # Turn off auto white balance
-            
-            # Set manual exposure and white balance values
-            cam.set(cv2.CAP_PROP_EXPOSURE, -4)      # Slightly underexpose to avoid washout
-            cam.set(cv2.CAP_PROP_WB_TEMPERATURE, 5000)  # Neutral white balance temperature
+            cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  
+            cam.set(cv2.CAP_PROP_AUTO_WB, 1)       
             
             # Camera warm-up period (key to fixing color issues)
             print(f"[{datetime.now()}] Warming up camera...")
@@ -144,60 +103,26 @@ def take_picture():
                 cam.read()
                 time.sleep(0.1)
             
-            # Capture frames and select the best one (another key improvement)
-            print(f"[{datetime.now()}] Capturing frames...")
-            frames = []
-            scores = []
-            
-            # Capture 3 frames (reduced from 5 for speed)
-            for i in range(3):
-                result, image = cam.read()
-                if result and image is not None and not np.all(image == 0):
-                    # Quality score based on image detail/contrast
-                    score = np.std(image)
-                    frames.append(image)
-                    scores.append(score)
-                time.sleep(0.2)  # Shorter delay between frames
+            result, image = cam.read()
+    
             
             # Release the camera
             cam.release()
             
-            if len(frames) > 0:
-                # Select the best frame
-                best_idx = np.argmax(scores)
-                captured_image = frames[best_idx]
                 
                 # Save original and enhanced image
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
-                cv2.imwrite(original_path, captured_image)
-                
-                # Apply mild enhancement
-                enhanced_image = enhance_image(captured_image)
-                
-                if enhanced_image is not None:
-                    # Save enhanced image
-                    enhanced_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
-                    cv2.imwrite(enhanced_path, enhanced_image)
-                    
-                    # Save as current image
-                    cv2.imwrite(CURRENT_IMAGE_PATH, enhanced_image)
-                    
-                    print(f"[{datetime.now()}] Image captured and saved successfully")
-                    return CURRENT_IMAGE_PATH
-                else:
-                    print(f"[{datetime.now()}] ERROR: Image enhancement failed")
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
+            cv2.imwrite(original_path, image)
             
-            print(f"[{datetime.now()}] ERROR: No valid frames captured")
-            return None
+            # Return the path to the original image
+            return original_path
                 
         except Exception as e:
             print(f"[{datetime.now()}] ERROR with camera: {str(e)}")
             return None
             
-    except Exception as e:
-        print(f"[{datetime.now()}] ERROR: Failed to take picture: {str(e)}")
-        return None
+
 
 # Analyze the image using OpenAI
 def analyze_image(image_path):
