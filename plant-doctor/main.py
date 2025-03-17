@@ -76,7 +76,7 @@ def encode_image(image_path):
 
 # Function to take a picture
 def take_picture():
-
+    try:
         print(f"[{datetime.now()}] Taking a picture...")
         cam_port = 0  # Default camera port
         
@@ -105,23 +105,31 @@ def take_picture():
             
             result, image = cam.read()
     
-            
             # Release the camera
             cam.release()
             
+            if result and image is not None:
+                # Save original image
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                original_path = os.path.join(IMAGE_DIR, f"plant_{timestamp}.jpg")
+                cv2.imwrite(original_path, image)
                 
-                # Save original and enhanced image
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            original_path = os.path.join(IMAGE_DIR, f"plant_original_{timestamp}.jpg")
-            cv2.imwrite(original_path, image)
-            
-            # Return the path to the original image
-            return original_path
+                # Also save as current.jpg for web display
+                cv2.imwrite(CURRENT_IMAGE_PATH, image)
+                
+                print(f"[{datetime.now()}] Image captured and saved successfully")
+                return CURRENT_IMAGE_PATH
+            else:
+                print(f"[{datetime.now()}] ERROR: Failed to capture valid image")
+                return None
                 
         except Exception as e:
             print(f"[{datetime.now()}] ERROR with camera: {str(e)}")
             return None
             
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Failed to take picture: {str(e)}")
+        return None
 
 
 # Analyze the image using OpenAI
