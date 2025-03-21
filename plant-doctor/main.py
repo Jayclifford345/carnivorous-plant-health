@@ -296,7 +296,8 @@ def fetch_sensor_data():
                     if stat == "current":
                         value = float(data["data"]["result"][0]["values"][-1][1])
                     else:
-                        value = float(data["data"]["result"][0]["value"][1])
+                        # For range queries (min/max/avg), the value is in the first result
+                        value = float(data["data"]["result"][0]["values"][0][1])
                     results[metric][stat] = value
                 else:
                     print(f"[{datetime.now()}] ERROR: Failed to fetch {metric} {stat} from Prometheus")
