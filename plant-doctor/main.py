@@ -503,7 +503,7 @@ def get_image_base64():
 if __name__ == "__main__":
     # Set up the scheduler for 9am and 5pm captures
     scheduler = BackgroundScheduler()
-    scheduler.add_job(capture_and_analyze, 'cron', hour='9,17')
+    scheduler.add_job(capture_and_analyze, 'cron', hour='9,12,17')
     scheduler.start()
     
     # Load any existing analysis data
