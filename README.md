@@ -136,11 +136,35 @@ A full-stack IoT solution for monitoring and maintaining the health of carnivoro
 - Identification of potential issues or diseases
 - Carnivorous plant species recognition
 - Health status tracking over time
+- Tank health analysis combining visual and sensor data
+- Historical trend analysis for environmental conditions
 
 ### Automation
 - Smart humidifier control based on humidity levels
 - Alert notifications for adverse conditions
 - Scheduled image capture and health assessment
+- Automatic image retention (keeps last 5 images)
+
+## API Endpoints
+
+The plant-doctor service provides the following API endpoints:
+
+### Plant Health
+- `GET /`: Web interface for monitoring plant health
+- `GET /image`: Current plant image
+- `GET /api/health`: JSON data of latest plant health analysis
+- `POST /api/capture`: Manually trigger image capture and analysis
+
+### Sensor Data
+- `GET /api/metrics`: Test endpoint for Prometheus queries
+  - Returns 12-hour historical data for temperature and humidity
+  - Includes min, max, average, current values
+  - Includes rate of change analysis
+
+### Image Data
+- `GET /api/image/base64`: Current image in base64 format
+  - Useful for testing and debugging
+  - Returns JSON with encoded image data
 
 ## Dashboard Guide
 
@@ -150,6 +174,27 @@ The Grafana dashboard at http://plant-hub:3000 provides:
 - Historical trends of environmental conditions
 - Alert status and history
 - Plant health assessment results
+- Tank health analysis and recommendations
+
+## Prometheus Metrics
+
+The system collects and stores the following metrics:
+
+### Temperature
+- `temperature_celsius`: Current temperature
+- Historical analysis:
+  - Minimum temperature over 12h
+  - Maximum temperature over 12h
+  - Average temperature over 12h
+  - Rate of temperature change
+
+### Humidity
+- `humidity_percent`: Current humidity
+- Historical analysis:
+  - Minimum humidity over 12h
+  - Maximum humidity over 12h
+  - Average humidity over 12h
+  - Rate of humidity change
 
 ## Troubleshooting
 
@@ -157,15 +202,24 @@ The Grafana dashboard at http://plant-hub:3000 provides:
 - Verify I2C connection: `sudo i2cdetect -y 1`
 - Check system logs: `journalctl -u greenhouse-sensor -f`
 - Ensure proper wiring and power supply
+- Test Prometheus queries: `curl http://plant-hub:9090/api/v1/query?query=temperature_celsius`
 
 ### Camera Issues
 - Verify camera connection: `ls -l /dev/video*`
 - Test camera capture: `fswebcam test.jpg`
+- Check image quality: `curl http://plant-hub:5000/api/image/base64`
 
 ### Connectivity Issues
 - Ensure both Raspberry Pis are on the same network
 - Verify network configuration: `ping plant-hub` from the sensor Pi
 - Check service status: `docker-compose ps` on the hub Pi
+- Test API endpoints: `curl http://plant-hub:5000/api/metrics`
+
+### AI Analysis Issues
+- Verify OpenAI API key is set correctly
+- Check image quality and lighting conditions
+- Review OpenTelemetry logs for analysis results
+- Test individual components via API endpoints
 
 ## Contributing
 
