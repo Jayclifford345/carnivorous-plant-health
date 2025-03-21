@@ -124,13 +124,16 @@ A full-stack IoT solution for monitoring and maintaining the health of carnivoro
 
 4. **Setup the Plant Doctor Application**
    ```bash
-   sudo ./install.sh
+   # Option 1: Preserve environment variables with sudo -E
+   sudo -E ./install.sh
+   
+   # Option 2: Pass environment variable directly to sudo
+   sudo OPENAI_API_KEY="your-api-key" ./install.sh
    ```
 
-   Note: The environment variable must be exported before running the install script. If you get an error about missing API token, verify the export worked by running:
-   ```bash
-   echo $AI_TOKEN  # or echo $OPENAI_API_KEY
-   ```
+   Note: When using sudo, environment variables are not automatically passed to the new environment. You must either:
+   - Use the `-E` flag with sudo to preserve all environment variables
+   - Or pass the environment variable directly to the sudo command
 
 ## System Features
 
