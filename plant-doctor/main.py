@@ -71,8 +71,26 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
-# Function to improve image quality
-
+# Function to manage image retention
+def manage_image_retention():
+    """Keep only the 5 most recent images and delete older ones."""
+    try:
+        # Get all plant images in the directory
+        plant_images = [f for f in os.listdir(IMAGE_DIR) if f.startswith("plant_") and f.endswith(".jpg")]
+        
+        # Sort by modification time, newest first
+        plant_images.sort(key=lambda x: os.path.getmtime(os.path.join(IMAGE_DIR, x)), reverse=True)
+        
+        # Delete all but the 5 most recent images
+        for old_image in plant_images[5:]:
+            try:
+                os.remove(os.path.join(IMAGE_DIR, old_image))
+                print(f"[{datetime.now()}] Deleted old image: {old_image}")
+            except Exception as e:
+                print(f"[{datetime.now()}] ERROR: Failed to delete old image {old_image}: {str(e)}")
+                
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Failed to manage image retention: {str(e)}")
 
 # Function to take a picture
 def take_picture():
@@ -116,6 +134,9 @@ def take_picture():
                 
                 # Also save as current.jpg for web display
                 cv2.imwrite(CURRENT_IMAGE_PATH, image)
+                
+                # Manage image retention to keep only 5 most recent images
+                manage_image_retention()
                 
                 print(f"[{datetime.now()}] Image captured and saved successfully")
                 return CURRENT_IMAGE_PATH
@@ -184,11 +205,11 @@ def analyze_image(image_path):
         # Only send AI analysis results to OpenTelemetry
         for plant in analysis_result.log:
             # Determine severity based on plant status
-            severity = _logs.Severity.INFO
+            severity = _logs.SeverityNumber.INFO
             if plant.plant_status == "warning":
-                severity = _logs.Severity.WARN
+                severity = _logs.SeverityNumber.WARN
             elif plant.plant_status == "critical":
-                severity = _logs.Severity.ERROR
+                severity = _logs.SeverityNumber.ERROR
                 
             # Send plant health data to OpenTelemetry logs
             ai_logger.log(
