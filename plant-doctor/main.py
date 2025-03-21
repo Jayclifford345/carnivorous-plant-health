@@ -476,6 +476,29 @@ def test_metrics():
             "message": str(e)
         }), 500
 
+@app.route('/api/image/base64')
+def get_image_base64():
+    """Return the current image in base64 format"""
+    try:
+        if os.path.exists(CURRENT_IMAGE_PATH):
+            with open(CURRENT_IMAGE_PATH, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+            return jsonify({
+                "status": "success",
+                "data": encoded_string
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "No image available"
+            }), 404
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Failed to encode image: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 # Main entry point
 if __name__ == "__main__":
     # Set up the scheduler for 9am and 5pm captures
