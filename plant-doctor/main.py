@@ -14,6 +14,8 @@ from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.sdk.resources import Resource
 import logging
+import requests
+from datetime import datetime, timedelta
 
 # Set up Flask application
 app = Flask(__name__)
@@ -47,6 +49,12 @@ class PlantHealth(BaseModel):
 class HealthResponse(BaseModel):
     log: list[PlantHealth]
 
+class TankHealth(BaseModel):
+    tank_status: str  # info, warning, critical
+    temperature_analysis: str
+    humidity_analysis: str
+    combined_diagnosis: str
+    recommendations: str
 
 resource = Resource.create({"service.name": service_name})
 logger_provider = LoggerProvider(resource=resource)
@@ -240,6 +248,131 @@ def analyze_image(image_path):
         print(f"[{datetime.now()}] ERROR: Failed to analyze image: {str(e)}")
         return None
 
+# Function to fetch sensor data from Prometheus
+def fetch_sensor_data():
+    """Fetch the last 12 hours of sensor data from Prometheus using HTTP API"""
+    try:
+        # Calculate time range (12 hours ago)
+        end_time = datetime.now()
+        start_time = end_time - timedelta(hours=12)
+        
+        # Prometheus query endpoint
+        prometheus_url = "http://plant-hub:9090/api/v1/query_range"
+        
+        # Query parameters
+        params = {
+            "start": start_time.timestamp(),
+            "end": end_time.timestamp(),
+            "step": "5m"  # 5-minute intervals
+        }
+        
+        # Use Prometheus's built-in functions for calculations
+        queries = {
+            "temperature": {
+                "min": "min_over_time(temperature_celsius[12h])",
+                "max": "max_over_time(temperature_celsius[12h])",
+                "avg": "avg_over_time(temperature_celsius[12h])",
+                "current": "temperature_celsius"
+            },
+            "humidity": {
+                "min": "min_over_time(humidity_percent[12h])",
+                "max": "max_over_time(humidity_percent[12h])",
+                "avg": "avg_over_time(humidity_percent[12h])",
+                "current": "humidity_percent"
+            }
+        }
+        
+        # Fetch all metrics in one go
+        results = {}
+        for metric, queries in queries.items():
+            results[metric] = {}
+            for stat, query in queries.items():
+                params["query"] = query
+                response = requests.get(prometheus_url, params=params)
+                data = response.json()
+                
+                if data["status"] == "success" and data["data"]["result"]:
+                    # For current values, we only need the last point
+                    if stat == "current":
+                        value = float(data["data"]["result"][0]["values"][-1][1])
+                    else:
+                        value = float(data["data"]["result"][0]["value"][1])
+                    results[metric][stat] = value
+                else:
+                    print(f"[{datetime.now()}] ERROR: Failed to fetch {metric} {stat} from Prometheus")
+                    return None
+        
+        return results
+            
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Failed to fetch sensor data: {str(e)}")
+        return None
+
+# Function to analyze tank health
+def analyze_tank_health(image_path, sensor_data):
+    """Analyze tank health using both image and sensor data"""
+    try:
+        # Encode the image
+        encoded_image = encode_image(image_path)
+        
+        # Create a new OpenAI request
+        response = openai_client.beta.chat.completions.parse(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a carnivorous plant tank health expert. Analyze the tank conditions based on both the visual image and sensor data."},
+                {"role": "system", "content": "tank_status follows log info, warning, critical. temperature_analysis should analyze temperature trends and stability. humidity_analysis should analyze humidity trends and stability. combined_diagnosis should consider both visual and sensor data. recommendations should provide actionable steps."},
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"Analyze the tank health based on the image and sensor data:\n\nTemperature Data:\nMin: {sensor_data['temperature']['min']:.1f}°C\nMax: {sensor_data['temperature']['max']:.1f}°C\nAvg: {sensor_data['temperature']['avg']:.1f}°C\nCurrent: {sensor_data['temperature']['current']:.1f}°C\n\nHumidity Data:\nMin: {sensor_data['humidity']['min']:.1f}%\nMax: {sensor_data['humidity']['max']:.1f}%\nAvg: {sensor_data['humidity']['avg']:.1f}%\nCurrent: {sensor_data['humidity']['current']:.1f}%",
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpg;base64,{encoded_image}"},
+                        },
+                    ],
+                }
+            ],
+            response_format=TankHealth
+        )
+        
+        # Extract the analysis results
+        tank_analysis = response.choices[0].message.parsed
+        
+        # Log the tank health analysis
+        if tank_analysis.tank_status == "info":
+            logging.info("Tank Health Analysis", extra={
+                "tank.status": tank_analysis.tank_status,
+                "temperature.analysis": tank_analysis.temperature_analysis,
+                "humidity.analysis": tank_analysis.humidity_analysis,
+                "combined.diagnosis": tank_analysis.combined_diagnosis,
+                "recommendations": tank_analysis.recommendations
+            })
+        elif tank_analysis.tank_status == "warning":
+            logging.warning("Tank Health Analysis", extra={
+                "tank.status": tank_analysis.tank_status,
+                "temperature.analysis": tank_analysis.temperature_analysis,
+                "humidity.analysis": tank_analysis.humidity_analysis,
+                "combined.diagnosis": tank_analysis.combined_diagnosis,
+                "recommendations": tank_analysis.recommendations
+            })
+        else:  # critical
+            logging.critical("Tank Health Analysis", extra={
+                "tank.status": tank_analysis.tank_status,
+                "temperature.analysis": tank_analysis.temperature_analysis,
+                "humidity.analysis": tank_analysis.humidity_analysis,
+                "combined.diagnosis": tank_analysis.combined_diagnosis,
+                "recommendations": tank_analysis.recommendations
+            })
+        
+        return tank_analysis
+        
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Failed to analyze tank health: {str(e)}")
+        return None
+
 # Function to capture image and analyze
 def capture_and_analyze():
     print(f"[{datetime.now()}] Starting scheduled plant health check")
@@ -252,6 +385,17 @@ def capture_and_analyze():
         analysis = analyze_image(image_path)
         if analysis:
             print(f"[{datetime.now()}] Plant health check completed successfully")
+            
+            # Fetch and analyze sensor data
+            sensor_data = fetch_sensor_data()
+            if sensor_data:
+                tank_analysis = analyze_tank_health(image_path, sensor_data)
+                if tank_analysis:
+                    print(f"[{datetime.now()}] Tank health analysis completed successfully")
+                else:
+                    print(f"[{datetime.now()}] ERROR: Failed to analyze tank health")
+            else:
+                print(f"[{datetime.now()}] ERROR: Failed to fetch sensor data")
         else:
             print(f"[{datetime.now()}] ERROR: Failed to analyze the image")
     else:
@@ -296,6 +440,29 @@ def trigger_capture():
     except Exception as e:
         print(f"[{datetime.now()}] ERROR: Manual capture failed: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/api/metrics')
+def test_metrics():
+    """Test endpoint to fetch and return sensor metrics"""
+    try:
+        print(f"[{datetime.now()}] Testing Prometheus queries")
+        sensor_data = fetch_sensor_data()
+        if sensor_data:
+            return jsonify({
+                "status": "success",
+                "data": sensor_data
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": "Failed to fetch sensor data"
+            }), 500
+    except Exception as e:
+        print(f"[{datetime.now()}] ERROR: Metrics test failed: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 # Main entry point
 if __name__ == "__main__":

@@ -64,6 +64,23 @@
             margin-left: 10px;
             font-style: italic;
         }
+        .metrics-test {
+            margin-top: 20px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .metrics-result {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
     <script>
         function triggerCapture() {
@@ -89,6 +106,34 @@
                         document.getElementById('captureBtn').disabled = false;
                     });
             }
+            return false;
+        }
+
+        function testMetrics() {
+            document.getElementById('metricsLoading').style.display = 'inline';
+            document.getElementById('testMetricsBtn').disabled = true;
+            document.getElementById('metricsResult').textContent = '';
+            
+            fetch('/api/metrics')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('metricsResult').textContent = 
+                            JSON.stringify(data.data, null, 2);
+                    } else {
+                        document.getElementById('metricsResult').textContent = 
+                            'Error: ' + data.message;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('metricsResult').textContent = 
+                        'Error: ' + error;
+                })
+                .finally(() => {
+                    document.getElementById('metricsLoading').style.display = 'none';
+                    document.getElementById('testMetricsBtn').disabled = false;
+                });
+            
             return false;
         }
     </script>
@@ -129,6 +174,15 @@
         <div class="refresh">
             <a href="/">Refresh Page</a> | 
             <a href="/api/health">View JSON Data</a>
+        </div>
+        
+        <div class="metrics-test">
+            <h2>Test Sensor Metrics</h2>
+            <button id="testMetricsBtn" class="action-button" onclick="return testMetrics()">
+                🔍 Test Prometheus Queries
+            </button>
+            <span id="metricsLoading" class="loading">Fetching metrics...</span>
+            <pre id="metricsResult" class="metrics-result"></pre>
         </div>
     </div>
 </body>
