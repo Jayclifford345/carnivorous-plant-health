@@ -272,13 +272,15 @@ def fetch_sensor_data():
                 "min": "min_over_time(temperature_celsius[12h])",
                 "max": "max_over_time(temperature_celsius[12h])",
                 "avg": "avg_over_time(temperature_celsius[12h])",
-                "current": "temperature_celsius"
+                "current": "temperature_celsius",
+                "histogram": "rate(temperature_celsius[5m])"  # Rate of change over 5m windows
             },
             "humidity": {
                 "min": "min_over_time(humidity_percent[12h])",
                 "max": "max_over_time(humidity_percent[12h])",
                 "avg": "avg_over_time(humidity_percent[12h])",
-                "current": "humidity_percent"
+                "current": "humidity_percent",
+                "histogram": "rate(humidity_percent[5m])"  # Rate of change over 5m windows
             }
         }
         
@@ -292,13 +294,22 @@ def fetch_sensor_data():
                 data = response.json()
                 
                 if data["status"] == "success" and data["data"]["result"]:
-                    # For current values, we only need the last point
                     if stat == "current":
                         value = float(data["data"]["result"][0]["values"][-1][1])
+                        results[metric][stat] = value
+                    elif stat == "histogram":
+                        # For histogram, we'll store the last 12 values (1 hour) of rate changes
+                        values = [float(v[1]) for v in data["data"]["result"][0]["values"][-12:]]
+                        results[metric][stat] = {
+                            "values": values,
+                            "avg_rate": sum(values) / len(values) if values else 0,
+                            "max_rate": max(values) if values else 0,
+                            "min_rate": min(values) if values else 0
+                        }
                     else:
                         # For range queries (min/max/avg), the value is in the first result
                         value = float(data["data"]["result"][0]["values"][0][1])
-                    results[metric][stat] = value
+                        results[metric][stat] = value
                 else:
                     print(f"[{datetime.now()}] ERROR: Failed to fetch {metric} {stat} from Prometheus")
                     return None
