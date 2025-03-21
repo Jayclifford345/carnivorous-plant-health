@@ -42,6 +42,7 @@ class PlantHealth(BaseModel):
     plant_type: str    # venus flytrap, pitcher plant, sundew
     plant_id: int
     plant_diagnosis: str
+    plant_position: str
 
 class HealthResponse(BaseModel):
     log: list[PlantHealth]
@@ -82,6 +83,7 @@ def take_picture():
         
         try:
             cam = cv2.VideoCapture(cam_port)
+            cam.grab()
             
             if not cam.isOpened():
                 print(f"[{datetime.now()}] ERROR: Could not open camera on port {cam_port}")
@@ -90,18 +92,17 @@ def take_picture():
             # Set camera properties - these are the settings that worked well
             cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
             cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-            cam.set(cv2.CAP_PROP_FPS, 30)  # Set explicit frame rate
-            
-            # Turn off auto settings that caused color issues
-            cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)  
-            cam.set(cv2.CAP_PROP_AUTO_WB, 1)       
-            
-            # Camera warm-up period (key to fixing color issues)
-            print(f"[{datetime.now()}] Warming up camera...")
-            warm_up_frames = 10
-            for i in range(warm_up_frames):
-                cam.read()
-                time.sleep(0.1)
+            cam.set(cv2.CAP_PROP_BRIGHTNESS, 0)  # Matches v4l2 brightness setting
+            cam.set(cv2.CAP_PROP_CONTRAST, 32)   # Matches v4l2 contrast setting
+            cam.set(cv2.CAP_PROP_SATURATION, 64) # Matches v4l2 saturation setting
+            cam.set(cv2.CAP_PROP_HUE, 0)         # Matches v4l2 hue setting
+            cam.set(cv2.CAP_PROP_SHARPNESS, 5)   # Matches v4l2 sharpness setting
+            cam.set(cv2.CAP_PROP_GAIN, 10)       # Matches v4l2 gain setting
+            cam.set(cv2.CAP_PROP_AUTO_WB, 1)     # Auto white balance ON
+            cam.set(cv2.CAP_PROP_BACKLIGHT, 0)   # Backlight compensation OFF
+            cam.set(cv2.CAP_PROP_EXPOSURE, 200)  # Exposure setting
+
+            time.sleep(2)    
             
             result, image = cam.read()
     
@@ -152,9 +153,9 @@ def analyze_image(image_path):
         response = openai_client.beta.chat.completions.parse(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are a carnivorous plant health expert. Examine the daily picture of the plant and provide a state of health."},
-                {"role": "system", "content": "plant_status follows log info, warning, critical. plant_type to be venus flytrap, pitcher plant, sundew. plant_id is the unique identifier of the plant. plant_diagnosis is the diagnosis of the plant."},
-                {"role": "system", "content": "There could be multiple plants in the image. Please provide the diagnosis for each plant 1 by 1."},
+                {"role": "system", "content": "You are a carnivorous plant health expert. Examine the picture of the tank containing the plants. analyse leaves, colour, pitchers or flytraps, growth and any signs of decay"},
+                {"role": "system", "content": "plant_status follows log info, warning, critical. plant_type to be venus flytrap, pitcher plant, sundew. plant_id is the unique identifier of the plant. plant_diagnosis is the diagnosis of the plant. plant_position is where you have seen the plant in frame, for example top left, bottom right etc."},
+                {"role": "system", "content": "There are multiple plants in the image. Please provide the diagnosis for each plant 1 by 1. Note there maybe duplicates so pitcher1, pitcher2 etc."},
                 {
                     "role": "user",
                     "content": [
