@@ -480,8 +480,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
+        "h": 8,
+        "w": 12,
         "x": 0,
         "y": 20
       },
@@ -501,14 +501,82 @@
       "targets": [
         {
           "direction": "backward",
-          "editorMode": "builder",
-          "expr": "",
+          "editorMode": "code",
+          "expr": "{service_name=\"plant_doctor\"} | scope_name=\"root\"",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Plant Doctor",
       "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "begir8ow8d4hsb"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 20
+      },
+      "id": 8,
+      "options": {
+        "autoPlay": true,
+        "autoPlayInfinity": false,
+        "buttons": [],
+        "controls": true,
+        "height": 0,
+        "heightMode": "auto",
+        "infinityPlay": false,
+        "mediaSources": [
+          {
+            "field": "data",
+            "id": "2bbf2bc1-2ca5-4e7f-b95f-aca1c158cffa",
+            "refId": "A",
+            "type": "image"
+          }
+        ],
+        "noResultsMessage": "Nothing to display...",
+        "pdfToolbar": true,
+        "scale": "auto",
+        "toolbar": true,
+        "width": 0,
+        "widthMode": "auto",
+        "zoomType": "default"
+      },
+      "pluginVersion": "6.2.0",
+      "targets": [
+        {
+          "alias": "Random Walk",
+          "columns": [],
+          "dataOverrides": [],
+          "datasource": {
+            "type": "yesoreyeram-infinity-datasource",
+            "uid": "begir8ow8d4hsb"
+          },
+          "filters": [],
+          "format": "as-is",
+          "global_query_id": "",
+          "parser": "backend",
+          "refId": "A",
+          "root_selector": "",
+          "source": "url",
+          "type": "json",
+          "url": "http://192.168.1.92:5000/api/image/base64",
+          "url_options": {
+            "data": "",
+            "method": "GET"
+          }
+        }
+      ],
+      "title": "",
+      "type": "volkovlabs-image-panel"
     }
   ],
   "preload": false,
