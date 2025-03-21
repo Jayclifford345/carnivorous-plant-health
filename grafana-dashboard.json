@@ -499,8 +499,8 @@
       "targets": [
         {
           "direction": "backward",
-          "editorMode": "builder",
-          "expr": "",
+          "editorMode": "code",
+          "expr": "{service_name=\"plant_doctor\"} | scope_name=\"root\"",
           "queryType": "range",
           "refId": "A"
         }

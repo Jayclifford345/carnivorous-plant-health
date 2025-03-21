@@ -3,22 +3,22 @@ import time
 import json
 from datetime import datetime
 import cv2
-import numpy as np
 import base64
 from flask import Flask, jsonify, send_file, render_template
 from apscheduler.schedulers.background import BackgroundScheduler
 from openai import OpenAI
 from pydantic import BaseModel
 # Import OpenTelemetry modules for logging AI results only
-from opentelemetry import _logs
-from opentelemetry._logs import set_logger_provider
-from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.sdk.resources import Resource
+import logging
 
 # Set up Flask application
 app = Flask(__name__)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
 
 # File paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -47,25 +47,18 @@ class PlantHealth(BaseModel):
 class HealthResponse(BaseModel):
     log: list[PlantHealth]
 
-# Set up OpenTelemetry logging for AI analysis results only
-def setup_otlp_logging():
-    resource = Resource.create({"service.name": service_name})
-    
-    # Create and configure the OTel logger provider
-    logger_provider = LoggerProvider(resource=resource)
-    
-    # Create OTLP exporter for logs
-    otlp_exporter = OTLPLogExporter(endpoint="http://plant-hub:4318/v1/logs")
-    logger_provider.add_log_record_processor(BatchLogRecordProcessor(otlp_exporter))
-    
-    # Set the global logger provider
-    set_logger_provider(logger_provider)
-    
-    # Return a logger instance
-    return _logs.get_logger("plant_doctor", "1.0.0")
 
-# Initialize the OpenTelemetry logger for AI results only
-ai_logger = setup_otlp_logging()
+resource = Resource.create({"service.name": service_name})
+logger_provider = LoggerProvider(resource=resource)
+# Create OTLP exporter for logs
+otlp_exporter = OTLPLogExporter(endpoint="http://plant-hub:4318/v1/logs")
+logger_provider.add_log_record_processor(BatchLogRecordProcessor(exporter=otlp_exporter, max_queue_size=5, max_export_batch_size=1))
+
+# 3. Attach the OTLP LoggingHandler to a logger
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(LoggingHandler(logger_provider=logger_provider))
+
 
 # Function to encode the image for OpenAI
 def encode_image(image_path):
@@ -205,27 +198,37 @@ def analyze_image(image_path):
         
         # Only send AI analysis results to OpenTelemetry
         for plant in analysis_result.log:
-            # Determine severity based on plant status
-            severity = _logs.SeverityNumber.INFO
-            if plant.plant_status == "warning":
-                severity = _logs.SeverityNumber.WARN
-            elif plant.plant_status == "critical":
-                severity = _logs.SeverityNumber.ERROR
-                
-            # Send plant health data to OpenTelemetry logs
-            ai_logger.emit(
-                severity,
-                f"Plant #{plant.plant_id} ({plant.plant_type}): {plant.plant_diagnosis}",
-                {
+
+            if plant.plant_status == "info":
+                msg = f"{plant.plant_type}: {plant.plant_id} -> {plant.plant_position}" 
+                logging.info(msg, extra={
                     "plant.id": plant.plant_id,
                     "plant.type": plant.plant_type,
                     "plant.status": plant.plant_status,
                     "plant.diagnosis": plant.plant_diagnosis,
-                    "plant.position": plant.plant_position,
-                    "analysis_timestamp": datetime.now().isoformat(),
-                    "image_path": image_path
-                }
-            )
+                    "plant.position": plant.plant_position
+
+                })
+
+            elif plant.plant_status == "warning":
+                msg = f"{plant.plant_type}: {plant.plant_id} -> {plant.plant_position}"
+                logging.warning(msg, extra={
+                    "plant.id": plant.plant_id,
+                    "plant.type": plant.plant_type,
+                    "plant.status": plant.plant_status,
+                    "plant.diagnosis": plant.plant_diagnosis,
+                    "plant.position": plant.plant_position
+                })
+                
+            elif plant.plant_status == "critical":
+                msg = f"{plant.plant_type}: {plant.plant_id} -> {plant.plant_position}"
+                logging.critical(msg, extra={
+                    "plant.id": plant.plant_id,
+                    "plant.type": plant.plant_type,
+                    "plant.status": plant.plant_status,
+                    "plant.diagnosis": plant.plant_diagnosis,
+                    "plant.position": plant.plant_position
+                })
         
         # Print summary for application logs
         duration_ms = (time.time() - start_time) * 1000
