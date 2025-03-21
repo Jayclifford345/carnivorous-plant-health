@@ -213,7 +213,7 @@ def analyze_image(image_path):
                 severity = _logs.SeverityNumber.ERROR
                 
             # Send plant health data to OpenTelemetry logs
-            ai_logger.log(
+            ai_logger.emit(
                 severity,
                 f"Plant #{plant.plant_id} ({plant.plant_type}): {plant.plant_diagnosis}",
                 {
