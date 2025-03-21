@@ -221,6 +221,7 @@ def analyze_image(image_path):
                     "plant.type": plant.plant_type,
                     "plant.status": plant.plant_status,
                     "plant.diagnosis": plant.plant_diagnosis,
+                    "plant.position": plant.plant_position,
                     "analysis_timestamp": datetime.now().isoformat(),
                     "image_path": image_path
                 }
