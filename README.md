@@ -115,12 +115,21 @@ A full-stack IoT solution for monitoring and maintaining the health of carnivoro
 
 3. **Set up OpenAI API Key**
    ```bash
-   export OPENAI_API_KEY=your-api-key
+   # Option 1: Using AI_TOKEN (preferred)
+   export AI_TOKEN="your-api-key"
+   
+   # Option 2: Using OPENAI_API_KEY (alternative)
+   export OPENAI_API_KEY="your-api-key"
    ```
 
 4. **Setup the Plant Doctor Application**
    ```bash
    sudo ./install.sh
+   ```
+
+   Note: The environment variable must be exported before running the install script. If you get an error about missing API token, verify the export worked by running:
+   ```bash
+   echo $AI_TOKEN  # or echo $OPENAI_API_KEY
    ```
 
 ## System Features
