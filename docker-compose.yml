@@ -2,7 +2,7 @@ version: '3'
 services:
 
   node-red:
-    image: nodered/node-red:latest
+    image: nodered/node-red:4.1.3-22
     environment:
       - TZ=Europe/london
     ports:
@@ -14,7 +14,7 @@ services:
       - ./node-red/data:/data
     
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:12.3.1
     environment:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -30,7 +30,7 @@ services:
     restart: always
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v3.9.1
     ports:
       - 9090:9090
     volumes:
@@ -41,7 +41,7 @@ services:
     restart: always
 
   loki:
-    image: grafana/loki:3.4.2
+    image: grafana/loki:3.6.3
     ports:
       - "3100:3100"
     volumes:
@@ -52,7 +52,7 @@ services:
     restart: always
   
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.12.2
     ports:
       - 12345:12345
       - 4318:4318
